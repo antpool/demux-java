@@ -43,7 +43,7 @@ public class BaseActionWatcher {
 
         // Process blocks until we're at the head block
         long headBlockNumber = 0;
-        while (headBlockNumber > 0 || this.actionReader.getCurrentBlockNumber() < headBlockNumber) {
+        while (headBlockNumber == 0 || this.actionReader.getCurrentBlockNumber() < headBlockNumber) {
             try {
                 headBlockNumber = explore(headBlockNumber);
             } catch (Exception ex) {
