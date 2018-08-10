@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Reads blocks from a blockchain, outputting normalized `Block` objects.
@@ -25,7 +26,7 @@ public abstract class AbstractActionReader {
     private boolean isFirstBlock = true;
 
     private Block currentBlockData;
-    private List<Block> blockHistory = Lists.newCopyOnWriteArrayList();
+    private List<Block> blockHistory = Lists.newArrayList();
 
     public AbstractActionReader() {
         this(1, false, 600);
@@ -126,7 +127,7 @@ public abstract class AbstractActionReader {
         // Rewind at least 1 block back
         int blockHistorySize = this.blockHistory.size();
         if (blockHistorySize > 0) {
-            Block block = this.blockHistory.get(blockHistorySize - 1);
+            Block block = popBlockHistory().orElse(null);
             if (block == null) {
                 throw new DemuxException("block history should not have undefined entries.");
             }
@@ -154,7 +155,7 @@ public abstract class AbstractActionReader {
             }
 
             this.currentBlockData = previousBlockData;
-            this.blockHistory.remove(this.blockHistory.size() - 1);
+            popBlockHistory();
             blocksToRewind += 1;
         }
         if (this.blockHistory.size() == 0) {
@@ -193,8 +194,7 @@ public abstract class AbstractActionReader {
             int blockHistorySize = this.blockHistory.size();
             this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
             // pop blockHistory
-            this.currentBlockData = this.blockHistory.get(blockHistorySize - 1);
-            this.blockHistory.remove(blockHistorySize - 1);
+            popBlockHistory().ifPresent(block -> this.currentBlockData = block);
         }
 
         // Load current block
@@ -206,5 +206,13 @@ public abstract class AbstractActionReader {
 
     public long headBlockNumber() {
         return headBlockNumber;
+    }
+
+    private Optional<Block> popBlockHistory() {
+        int blockHistorySize = this.blockHistory.size();
+        if (blockHistorySize == 0) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(this.blockHistory.remove(blockHistorySize - 1));
     }
 }

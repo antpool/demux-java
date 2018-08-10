@@ -4,11 +4,14 @@ import com.antpool.demux.exception.DemuxException;
 import com.antpool.demux.model.Action;
 import com.antpool.demux.model.Block;
 import com.antpool.demux.model.IndexState;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Takes `block`s output from implementations of `AbstractActionReader` and processes their actions through
@@ -27,11 +30,15 @@ public abstract class AbstractActionHandler<TState extends IndexState, TPayload,
     protected TState state;
     protected TContext context;
 
+    protected ExecutorService effectExecutorService;
+
     public AbstractActionHandler(List<Updater> updaters, List<Effect> effects, TState state, TContext context) {
         this.updaters = updaters;
         this.effects = effects;
         this.state = state;
         this.context = context;
+        final ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("effect-%d").setDaemon(true).build();
+        this.effectExecutorService = Executors.newFixedThreadPool(20, threadFactory);
     }
 
     /**
@@ -144,7 +151,7 @@ public abstract class AbstractActionHandler<TState extends IndexState, TPayload,
                     if (executor instanceof Updater) {
                         executor.execute(state, action.getPayload(), block, context);
                     } else if (executor instanceof Effect) {
-                        Executors.newSingleThreadExecutor().submit(() -> executor.execute(state, action.getPayload(), block, context));
+                        effectExecutorService.submit(() -> executor.execute(state, action.getPayload(), block, context));
                     }
                 }
             }
