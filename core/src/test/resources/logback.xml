@@ -1,0 +1,16 @@
+<configuration>
+    <property name="log.default_pattern" value="%d{yyyy-MM-dd HH:mm:ss.SSS}|%-5level|%logger{1}|%msg%n"/>
+    <property name="log.default_charset" value="UTF-8"/>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${log.default_pattern}%ex{short}</pattern>
+            <charset>${log.default_charset}</charset>
+        </encoder>
+    </appender>
+    <logger name="okhttp3" level="INFO" additivity="false">
+        <appender-ref ref="STDOUT"/>
+    </logger>
+    <root level="info">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
