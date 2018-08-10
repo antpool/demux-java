@@ -18,6 +18,7 @@ public class NodeosBlock extends Block<EosPayload> {
         this.blockNumber = rawBlock.getBlockNum();
         this.blockHash = rawBlock.getId();
         this.previousBlockHash = rawBlock.getPrevious();
+        this.timestamp = rawBlock.getTimestamp();
     }
 
     protected List<Action<EosPayload>> collectActionsFromBlock(EosRawBlock rawBlock) {

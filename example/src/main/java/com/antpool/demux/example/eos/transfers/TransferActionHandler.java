@@ -1,6 +1,5 @@
 package com.antpool.demux.example.eos.transfers;
 
-import com.antpool.demux.exception.DemuxException;
 import com.antpool.demux.handler.AbstractActionHandler;
 import com.antpool.demux.handler.Effect;
 import com.antpool.demux.handler.HandleWithArgs;
@@ -26,6 +25,7 @@ public class TransferActionHandler<TState extends TransferState, TPayload, TCont
     protected void updateIndexState(TState state, Block<TPayload> block, boolean isReplay, TContext context) {
         state.setBlockNumber(block.getBlockNumber());
         state.setBlockHash(block.getBlockHash());
+        state.setTimestamp(block.getTimestamp());
     }
 
     @Override
@@ -40,6 +40,7 @@ public class TransferActionHandler<TState extends TransferState, TPayload, TCont
 
     @Override
     protected void rollbackTo(long blockNumber) {
-        throw new DemuxException(String.format("Cannot roll back to %d; \\`rollbackTo\\` not implemented.", blockNumber));
+        //TODO rollback handle
+        log.info("rollbackTo blockNumber={}", blockNumber);
     }
 }
