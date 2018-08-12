@@ -12,7 +12,7 @@ public class JsonActionReader extends AbstractActionReader {
     private List<Block> blockchain = Lists.newArrayList();
 
     @Override
-    protected long getHeadBlockNumber() {
+    public long getHeadBlockNumber() {
         Block block = this.blockchain.get(this.blockchain.size() - 1);
         if (this.blockchain.size() != block.getBlockNumber()) {
             throw new DemuxException(String.format("Block at position %d indicates position %d incorrectly.", this.blockchain.size(), block.getBlockNumber()));
@@ -21,7 +21,7 @@ public class JsonActionReader extends AbstractActionReader {
     }
 
     @Override
-    protected Block getBlock(long blockNumber) {
+    public Block getBlock(long blockNumber) {
         Block block = this.blockchain.get((int) (blockNumber - 1));
         if (block == null) {
             throw new DemuxException(String.format("Block at position %d does not exist.", blockNumber));

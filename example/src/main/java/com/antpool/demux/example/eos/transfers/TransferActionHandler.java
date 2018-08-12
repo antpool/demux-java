@@ -6,6 +6,7 @@ import com.antpool.demux.handler.HandleWithArgs;
 import com.antpool.demux.handler.Updater;
 import com.antpool.demux.model.Block;
 import com.antpool.demux.model.IndexState;
+import com.antpool.demux.reader.AbstractActionReader;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -13,12 +14,15 @@ import java.util.List;
 @Slf4j
 public class TransferActionHandler<TState extends TransferState, TPayload, TContext> extends AbstractActionHandler<TState, TPayload, TContext> {
 
-    public TransferActionHandler(List<Updater> updaters, List<Effect> effects, TState state) {
-        this(updaters, effects, state, null);
+    private final AbstractActionReader actionReader;
+
+    public TransferActionHandler(AbstractActionReader actionReader, List<Updater> updaters, List<Effect> effects, TState state) {
+        this(actionReader, updaters, effects, state, null);
     }
 
-    public TransferActionHandler(List<Updater> updaters, List<Effect> effects, TState state, TContext context) {
+    public TransferActionHandler(AbstractActionReader actionReader, List<Updater> updaters, List<Effect> effects, TState state, TContext context) {
         super(updaters, effects, state, context);
+        this.actionReader = actionReader;
     }
 
     @Override
@@ -40,7 +44,12 @@ public class TransferActionHandler<TState extends TransferState, TPayload, TCont
 
     @Override
     protected void rollbackTo(long blockNumber) {
-        //TODO rollback handle
         log.info("rollbackTo blockNumber={}", blockNumber);
+        this.lastProcessedBlockNumber = blockNumber - 1;
+        Block block = actionReader.getBlock(this.lastProcessedBlockNumber);
+        if (block != null) {
+            this.lastProcessedBlockHash = block.getBlockHash();
+        }
+        //TODO rollback state
     }
 }

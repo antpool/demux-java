@@ -77,7 +77,9 @@ public abstract class AbstractActionHandler<TState extends IndexState, TPayload,
             return new BlockHandleResult(false, 0);
         }
         if (isRollback) {
-            this.rollbackTo(block.getBlockNumber() - 1);
+            //this.rollbackTo(block.getBlockNumber() - 1);
+            //TODO confirm rollback blockNumber
+            this.rollbackTo(block.getBlockNumber());
         }
         if (StringUtils.isBlank(lastProcessedBlockHash) && this.lastProcessedBlockNumber == 0) {
             IndexState indexState = this.loadIndexState();
@@ -95,11 +97,13 @@ public abstract class AbstractActionHandler<TState extends IndexState, TPayload,
         long nextBlockNeeded = this.lastProcessedBlockNumber + 1;
         // If it's the first block but we've already processed blocks, seek to next block
         if (isFirstBlock && StringUtils.isNotBlank(this.lastProcessedBlockHash)) {
+            log.warn("handleBlock needToSeek: isFirstBlock & lastProcessedBlockHash is not black");
             return new BlockHandleResult(true, nextBlockNeeded);
         }
         // Only check if this is the block we need if it's not the first block
         if (!isFirstBlock) {
             if (block.getBlockNumber() != nextBlockNeeded) {
+                log.warn("handleBlock needToSeek: isNotFirstBlock & blockNumber={} != nextBlockNeeded={}", block.getBlockNumber(), nextBlockNeeded);
                 return new BlockHandleResult(true, nextBlockNeeded);
             }
             // Block sequence consistency should be handled by the ActionReader instance

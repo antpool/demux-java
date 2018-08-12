@@ -14,6 +14,9 @@ import java.util.Optional;
  */
 @Slf4j
 public abstract class AbstractActionReader {
+    private static final boolean DEFAULT_ONLY_IRREVERSIBLE = false;
+    private static final int DEFAULT_MAX_HISTORY_LENGTH = 1000;
+
     @Getter
     private long startAtBlock;
     private boolean onlyIrreversible;
@@ -29,11 +32,11 @@ public abstract class AbstractActionReader {
     private List<Block> blockHistory = Lists.newArrayList();
 
     public AbstractActionReader() {
-        this(1, false, 600);
+        this(1, DEFAULT_ONLY_IRREVERSIBLE, DEFAULT_MAX_HISTORY_LENGTH);
     }
 
     public AbstractActionReader(long startAtBlock) {
-        this(startAtBlock, false, 600);
+        this(startAtBlock, DEFAULT_ONLY_IRREVERSIBLE, DEFAULT_MAX_HISTORY_LENGTH);
     }
 
     public AbstractActionReader(long startAtBlock, boolean onlyIrreversible, int maxHistoryLength) {
@@ -49,7 +52,7 @@ public abstract class AbstractActionReader {
      *
      * @return
      */
-    protected abstract long getHeadBlockNumber();
+    public abstract long getHeadBlockNumber();
 
     /**
      * Loads a block with the given block number
@@ -57,7 +60,7 @@ public abstract class AbstractActionReader {
      * @param blockNumber
      * @return
      */
-    protected abstract Block getBlock(long blockNumber);
+    public abstract Block getBlock(long blockNumber);
 
     /**
      * Loads the next block with chainInterface after validating, updating all relevant state.
@@ -71,6 +74,7 @@ public abstract class AbstractActionReader {
 
         if (this.currentBlockNumber == this.headBlockNumber || this.headBlockNumber == 0) {
             this.headBlockNumber = this.getHeadBlockNumber();
+            log.info("refresh current head block, headBlockNumber={}, currentBlockNumber={}", this.headBlockNumber, this.currentBlockNumber);
         }
 
         if (this.currentBlockNumber < 0 && this.blockHistory.size() == 0) {
@@ -99,11 +103,14 @@ public abstract class AbstractActionReader {
             } else {
                 // Since the new block did not match our history, we can assume our history is wrong
                 // and need to roll back
+                log.warn("need to roll back, currentBlockNumber={}, expectedHash={}, actualHash={}", this.currentBlockNumber, expectedHash, actualHash);
                 this.rollback();
                 isRollback = true; // Signal action handler that we must roll back
                 // Reset for safety, as new fork could have less blocks than the previous fork
                 this.headBlockNumber = this.getHeadBlockNumber();
             }
+        } else {
+            this.headBlockNumber = this.getHeadBlockNumber();
         }
 
         // Let handler know if this is the earliest block we'll send
@@ -132,6 +139,7 @@ public abstract class AbstractActionReader {
                 throw new DemuxException("block history should not have undefined entries.");
             }
             this.currentBlockData = this.getBlock(block.getBlockNumber());
+            this.currentBlockNumber = this.currentBlockData.getBlockNumber();
             blocksToRewind = 1;
         }
 
@@ -146,6 +154,7 @@ public abstract class AbstractActionReader {
                     log.info("  expected: {}", currentBlock.getPreviousBlockHash());
                     log.info("  received: {}", previousBlockData.getBlockHash());
                     log.info("Rewinding {} blocks to block ({})...", blocksToRewind, currentBlock.getBlockNumber());
+                    log.info("Rollback currentBlockNumber={}, currentBlockHash={}", this.currentBlockNumber, this.currentBlockData.getBlockHash());
                     break;
                 }
                 log.info("✕ BLOCK {} MATCH:", currentBlock.getBlockNumber());
@@ -155,8 +164,10 @@ public abstract class AbstractActionReader {
             }
 
             this.currentBlockData = previousBlockData;
+            this.currentBlockNumber = this.currentBlockData.getBlockNumber();
             popBlockHistory();
             blocksToRewind += 1;
+            log.info("Rollback currentBlockNumber={}, currentBlockHash={}", this.currentBlockNumber, this.currentBlockData.getBlockHash());
         }
         if (this.blockHistory.size() == 0) {
             this.rollbackExhausted();
@@ -171,13 +182,14 @@ public abstract class AbstractActionReader {
      * Move to the specified block.
      */
     public void seekToBlock(long blockNumber) {
+        log.info("start seekToBlock, blockNumber={}", blockNumber);
         // Clear current block data
         this.currentBlockData = null;
         this.headBlockNumber = 0;
 
         // If we're going back to the first block, we don't want to get the preceding block
         if (blockNumber == 1) {
-            this.blockHistory = Lists.newCopyOnWriteArrayList();
+            this.blockHistory = Lists.newArrayList();
             return;
         }
 
@@ -190,6 +202,7 @@ public abstract class AbstractActionReader {
                 toDelete += 1;
             }
         }
+
         if (toDelete >= 0) {
             int blockHistorySize = this.blockHistory.size();
             this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
@@ -198,10 +211,13 @@ public abstract class AbstractActionReader {
         }
 
         // Load current block
-        this.currentBlockNumber = blockNumber - 1;
+        //this.currentBlockNumber = blockNumber - 1;
+        //TODO confirm current blockNumber
+        this.currentBlockNumber = blockNumber;
         if (this.currentBlockData == null) {
             this.currentBlockData = this.getBlock(this.currentBlockNumber);
         }
+        log.info("end seekToBlock, currentBlockNumber={}", this.currentBlockNumber);
     }
 
     public long headBlockNumber() {
