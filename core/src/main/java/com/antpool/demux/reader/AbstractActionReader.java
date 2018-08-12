@@ -52,7 +52,7 @@ public abstract class AbstractActionReader {
      *
      * @return
      */
-    protected abstract long getHeadBlockNumber();
+    public abstract long getHeadBlockNumber();
 
     /**
      * Loads a block with the given block number
@@ -60,7 +60,7 @@ public abstract class AbstractActionReader {
      * @param blockNumber
      * @return
      */
-    protected abstract Block getBlock(long blockNumber);
+    public abstract Block getBlock(long blockNumber);
 
     /**
      * Loads the next block with chainInterface after validating, updating all relevant state.
@@ -109,6 +109,8 @@ public abstract class AbstractActionReader {
                 // Reset for safety, as new fork could have less blocks than the previous fork
                 this.headBlockNumber = this.getHeadBlockNumber();
             }
+        } else {
+            this.headBlockNumber = this.getHeadBlockNumber();
         }
 
         // Let handler know if this is the earliest block we'll send
@@ -137,6 +139,7 @@ public abstract class AbstractActionReader {
                 throw new DemuxException("block history should not have undefined entries.");
             }
             this.currentBlockData = this.getBlock(block.getBlockNumber());
+            this.currentBlockNumber = this.currentBlockData.getBlockNumber();
             blocksToRewind = 1;
         }
 
@@ -151,6 +154,7 @@ public abstract class AbstractActionReader {
                     log.info("  expected: {}", currentBlock.getPreviousBlockHash());
                     log.info("  received: {}", previousBlockData.getBlockHash());
                     log.info("Rewinding {} blocks to block ({})...", blocksToRewind, currentBlock.getBlockNumber());
+                    log.info("Rollback currentBlockNumber={}, currentBlockHash={}", this.currentBlockNumber, this.currentBlockData.getBlockHash());
                     break;
                 }
                 log.info("✕ BLOCK {} MATCH:", currentBlock.getBlockNumber());
@@ -160,8 +164,10 @@ public abstract class AbstractActionReader {
             }
 
             this.currentBlockData = previousBlockData;
+            this.currentBlockNumber = this.currentBlockData.getBlockNumber();
             popBlockHistory();
             blocksToRewind += 1;
+            log.info("Rollback currentBlockNumber={}, currentBlockHash={}", this.currentBlockNumber, this.currentBlockData.getBlockHash());
         }
         if (this.blockHistory.size() == 0) {
             this.rollbackExhausted();
@@ -188,25 +194,20 @@ public abstract class AbstractActionReader {
         }
 
         // Check if block exists in history
-        boolean findInHistory = false;
         int toDelete = -1;
         for (int i = this.blockHistory.size() - 1; i >= 0; i--) {
             if (this.blockHistory.get(i).getBlockNumber() == blockNumber) {
-                findInHistory = true;
                 break;
             } else {
                 toDelete += 1;
             }
         }
-        if(findInHistory){
-            if (toDelete >= 0) {
-                int blockHistorySize = this.blockHistory.size();
-                this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
-                // pop blockHistory
-                popBlockHistory().ifPresent(block -> this.currentBlockData = block);
-            }
-        }else{
-            this.blockHistory = Lists.newArrayList();
+
+        if (toDelete >= 0) {
+            int blockHistorySize = this.blockHistory.size();
+            this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
+            // pop blockHistory
+            popBlockHistory().ifPresent(block -> this.currentBlockData = block);
         }
 
         // Load current block
@@ -216,7 +217,7 @@ public abstract class AbstractActionReader {
         if (this.currentBlockData == null) {
             this.currentBlockData = this.getBlock(this.currentBlockNumber);
         }
-        log.info("end seekToBlock, currentBlockNumber={}, findInHistory={}", this.currentBlockNumber, findInHistory);
+        log.info("end seekToBlock, currentBlockNumber={}", this.currentBlockNumber);
     }
 
     public long headBlockNumber() {

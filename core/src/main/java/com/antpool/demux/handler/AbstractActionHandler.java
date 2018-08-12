@@ -103,14 +103,13 @@ public abstract class AbstractActionHandler<TState extends IndexState, TPayload,
         // Only check if this is the block we need if it's not the first block
         if (!isFirstBlock) {
             if (block.getBlockNumber() != nextBlockNeeded) {
-                log.warn("handleBlock needToSeek: isNotFirstBlock & blockNumber={} != lastProcessedBlockNumber={}", block.getBlockNumber(), lastProcessedBlockNumber);
+                log.warn("handleBlock needToSeek: isNotFirstBlock & blockNumber={} != nextBlockNeeded={}", block.getBlockNumber(), nextBlockNeeded);
                 return new BlockHandleResult(true, nextBlockNeeded);
             }
             // Block sequence consistency should be handled by the ActionReader instance
-            //TODO confirm rollback -> lastProcessedBlockHash
-            /*if (!StringUtils.equals(block.getPreviousBlockHash(), this.lastProcessedBlockHash)) {
+            if (!StringUtils.equals(block.getPreviousBlockHash(), this.lastProcessedBlockHash)) {
                 throw new DemuxException("Block hashes do not match; block not part of current chain.");
-            }*/
+            }
         }
 
         HandleWithArgs<TState, TContext> args = this.handleActions(this.state, block, isReplay, this.context);

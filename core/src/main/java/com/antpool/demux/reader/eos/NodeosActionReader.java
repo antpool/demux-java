@@ -57,7 +57,7 @@ public class NodeosActionReader extends AbstractActionReader {
     }
 
     @Override
-    protected long getHeadBlockNumber() {
+    public long getHeadBlockNumber() {
         Call<EosRawChainInfo> callResponse = nodeosService.getChainInfo();
         try {
             Response<EosRawChainInfo> response = callResponse.execute();
@@ -75,7 +75,7 @@ public class NodeosActionReader extends AbstractActionReader {
     }
 
     @Override
-    protected Block getBlock(long blockNumber) {
+    public Block getBlock(long blockNumber) {
         Call<EosRawBlock> callResponse = nodeosService.getChainBlock(new EosChainBlockRequest(blockNumber + ""));
         try {
             Response<EosRawBlock> response = callResponse.execute();
