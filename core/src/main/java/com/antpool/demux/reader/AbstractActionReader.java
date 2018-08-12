@@ -14,6 +14,9 @@ import java.util.Optional;
  */
 @Slf4j
 public abstract class AbstractActionReader {
+    private static final boolean DEFAULT_ONLY_IRREVERSIBLE = false;
+    private static final int DEFAULT_MAX_HISTORY_LENGTH = 1000;
+
     @Getter
     private long startAtBlock;
     private boolean onlyIrreversible;
@@ -29,11 +32,11 @@ public abstract class AbstractActionReader {
     private List<Block> blockHistory = Lists.newArrayList();
 
     public AbstractActionReader() {
-        this(1, false, 600);
+        this(1, DEFAULT_ONLY_IRREVERSIBLE, DEFAULT_MAX_HISTORY_LENGTH);
     }
 
     public AbstractActionReader(long startAtBlock) {
-        this(startAtBlock, false, 600);
+        this(startAtBlock, DEFAULT_ONLY_IRREVERSIBLE, DEFAULT_MAX_HISTORY_LENGTH);
     }
 
     public AbstractActionReader(long startAtBlock, boolean onlyIrreversible, int maxHistoryLength) {
@@ -71,6 +74,7 @@ public abstract class AbstractActionReader {
 
         if (this.currentBlockNumber == this.headBlockNumber || this.headBlockNumber == 0) {
             this.headBlockNumber = this.getHeadBlockNumber();
+            log.info("refresh current head block, headBlockNumber={}, currentBlockNumber={}", this.headBlockNumber, this.currentBlockNumber);
         }
 
         if (this.currentBlockNumber < 0 && this.blockHistory.size() == 0) {
@@ -99,6 +103,7 @@ public abstract class AbstractActionReader {
             } else {
                 // Since the new block did not match our history, we can assume our history is wrong
                 // and need to roll back
+                log.warn("need to roll back, currentBlockNumber={}, expectedHash={}, actualHash={}", this.currentBlockNumber, expectedHash, actualHash);
                 this.rollback();
                 isRollback = true; // Signal action handler that we must roll back
                 // Reset for safety, as new fork could have less blocks than the previous fork
@@ -171,37 +176,47 @@ public abstract class AbstractActionReader {
      * Move to the specified block.
      */
     public void seekToBlock(long blockNumber) {
+        log.info("start seekToBlock, blockNumber={}", blockNumber);
         // Clear current block data
         this.currentBlockData = null;
         this.headBlockNumber = 0;
 
         // If we're going back to the first block, we don't want to get the preceding block
         if (blockNumber == 1) {
-            this.blockHistory = Lists.newCopyOnWriteArrayList();
+            this.blockHistory = Lists.newArrayList();
             return;
         }
 
         // Check if block exists in history
+        boolean findInHistory = false;
         int toDelete = -1;
         for (int i = this.blockHistory.size() - 1; i >= 0; i--) {
             if (this.blockHistory.get(i).getBlockNumber() == blockNumber) {
+                findInHistory = true;
                 break;
             } else {
                 toDelete += 1;
             }
         }
-        if (toDelete >= 0) {
-            int blockHistorySize = this.blockHistory.size();
-            this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
-            // pop blockHistory
-            popBlockHistory().ifPresent(block -> this.currentBlockData = block);
+        if(findInHistory){
+            if (toDelete >= 0) {
+                int blockHistorySize = this.blockHistory.size();
+                this.blockHistory = this.blockHistory.subList(0, blockHistorySize - toDelete);
+                // pop blockHistory
+                popBlockHistory().ifPresent(block -> this.currentBlockData = block);
+            }
+        }else{
+            this.blockHistory = Lists.newArrayList();
         }
 
         // Load current block
-        this.currentBlockNumber = blockNumber - 1;
+        //this.currentBlockNumber = blockNumber - 1;
+        //TODO confirm current blockNumber
+        this.currentBlockNumber = blockNumber;
         if (this.currentBlockData == null) {
             this.currentBlockData = this.getBlock(this.currentBlockNumber);
         }
+        log.info("end seekToBlock, currentBlockNumber={}, findInHistory={}", this.currentBlockNumber, findInHistory);
     }
 
     public long headBlockNumber() {

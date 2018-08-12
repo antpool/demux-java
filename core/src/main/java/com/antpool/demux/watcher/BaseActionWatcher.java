@@ -45,7 +45,7 @@ public class BaseActionWatcher {
         long headBlockNumber = 0;
         while (headBlockNumber == 0 || this.actionReader.getCurrentBlockNumber() < headBlockNumber) {
             try {
-                headBlockNumber = explore(headBlockNumber);
+                headBlockNumber = explore();
             } catch (Exception ex) {
                 log.error("explore error, headBlockNumber={}, currentBlockNumber={}", headBlockNumber, this.actionReader.getCurrentBlockNumber(), ex);
             }
@@ -65,10 +65,10 @@ public class BaseActionWatcher {
         this.watch();
     }
 
-    protected long explore(long headBlockNumber) {
+    protected long explore() {
         BlockReadResult readResult = this.actionReader.nextBlock();
         if (readResult == null) {
-            return headBlockNumber;
+            return this.actionReader.headBlockNumber();
         }
         Block blockData = readResult.getBlockData();
         boolean isRollback = readResult.isRollback();
