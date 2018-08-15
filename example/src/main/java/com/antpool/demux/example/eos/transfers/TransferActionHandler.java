@@ -7,6 +7,7 @@ import com.antpool.demux.handler.Updater;
 import com.antpool.demux.model.Block;
 import com.antpool.demux.model.IndexState;
 import com.antpool.demux.reader.AbstractActionReader;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -16,8 +17,8 @@ public class TransferActionHandler<TState extends TransferState, TPayload, TCont
 
     private final AbstractActionReader actionReader;
 
-    public TransferActionHandler(AbstractActionReader actionReader, List<Updater> updaters, List<Effect> effects, TState state) {
-        this(actionReader, updaters, effects, state, null);
+    public TransferActionHandler(AbstractActionReader actionReader, Updater updaters, Effect effects, TState state) {
+        this(actionReader, Lists.newArrayList(updaters), Lists.newArrayList(effects), state, null);
     }
 
     public TransferActionHandler(AbstractActionReader actionReader, List<Updater> updaters, List<Effect> effects, TState state, TContext context) {
